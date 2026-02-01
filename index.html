@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Will You Be My Valentine?</title>
+  <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&display=swap');
+
+    * {
+      font-family: 'Poppins', sans-serif;
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      min-height: 100vh;
+      overflow: hidden;
+    }
+
+    .gradient-bg {
+      background: linear-gradient(135deg, #ffafbd 0%, #ffc3a0 100%);
+    }
+
+    .glass-card {
+      background: rgba(255, 255, 255, 0.25);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    }
+
+    .no-button {
+      transition: all 0.2s ease;
+    }
+
+    .fade-enter-active,
+    .fade-leave-active {
+      transition: opacity 0.5s ease;
+    }
+
+    .fade-enter-from,
+    .fade-leave-to {
+      opacity: 0;
+    }
+
+    .bounce {
+      animation: bounce 0.6s ease infinite;
+    }
+
+    @keyframes bounce {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-10px); }
+    }
+
+    .pulse-heart {
+      animation: pulse 1.5s ease infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.1); }
+    }
+
+    .celebration-text {
+      animation: celebrationPop 0.8s ease-out forwards;
+    }
+
+    @keyframes celebrationPop {
+      0% { transform: scale(0); opacity: 0; }
+      50% { transform: scale(1.2); }
+      100% { transform: scale(1); opacity: 1; }
+    }
+
+    .float-hearts {
+      position: absolute;
+      font-size: 2rem;
+      animation: floatUp 3s ease-in-out infinite;
+    }
+
+    @keyframes floatUp {
+      0% { transform: translateY(100vh) rotate(0deg); opacity: 1; }
+      100% { transform: translateY(-100px) rotate(360deg); opacity: 0; }
+    }
+  </style>
+</head>
+<body>
+  <div id="app" class="gradient-bg min-h-screen flex items-center justify-center relative">
+    <!-- Floating Hearts Background -->
+    <div v-if="!accepted" class="absolute inset-0 overflow-hidden pointer-events-none">
+      <span
+        v-for="heart in floatingHearts"
+        :key="heart.id"
+        class="float-hearts"
+        :style="{
+          left: heart.left + '%',
+          animationDelay: heart.delay + 's',
+          animationDuration: heart.duration + 's'
+        }"
+      >
+        {{ heart.emoji }}
+      </span>
+    </div>
+
+    <!-- Main Card -->
+    <transition name="fade">
+      <div
+        v-if="!accepted"
+        class="glass-card rounded-3xl p-8 md:p-12 max-w-md mx-4 text-center relative z-10"
+      >
+        <!-- Title -->
+        <h1 class="text-3xl md:text-4xl font-extrabold text-white mb-6 drop-shadow-lg">
+          Will you be my Valentine?
+        </h1>
+
+        <!-- Cute GIF -->
+        <div class="mb-6">
+          <img
+            src="https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExcnNrNm1wY2w1OWQ4MGV0N3BmdWE2Ymd4bTFubmUycG04MXRkcTYzNCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/MDJ9IbxxvDUQM/giphy.gif"
+            alt="Cute love animation"
+            class="w-48 h-48 mx-auto rounded-2xl object-cover shadow-lg"
+          />
+        </div>
+
+        <!-- Buttons Container -->
+        <div class="flex justify-center gap-4 mb-6">
+          <!-- Yes Button -->
+          <button
+            @click="acceptProposal"
+            class="px-8 py-3 bg-green-500 hover:bg-green-600 text-white font-bold rounded-full shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300"
+            :style="{ transform: `scale(${yesButtonScale})` }"
+          >
+            Yes!
+          </button>
+        </div>
+
+        <!-- Guilt Trip Message -->
+        <p
+          v-if="guiltMessage"
+          class="text-white/90 font-semibold text-lg mb-4 min-h-[28px]"
+        >
+          {{ guiltMessage }}
+        </p>
+        <div v-else class="min-h-[28px] mb-4"></div>
+      </div>
+    </transition>
+
+    <!-- Escaping No Button (positioned absolutely) -->
+    <button
+      v-if="!accepted"
+      @mouseenter="escapeButton"
+      @touchstart.prevent="escapeButton"
+      class="no-button px-8 py-3 bg-red-500 hover:bg-red-600 text-white font-bold rounded-full shadow-lg fixed z-50"
+      :style="{
+        left: noButtonPosition.x + 'px',
+        top: noButtonPosition.y + 'px'
+      }"
+    >
+      No
+    </button>
+
+    <!-- Celebration Screen -->
+    <transition name="fade">
+      <div
+        v-if="accepted"
+        class="fixed inset-0 flex flex-col items-center justify-center z-50 gradient-bg"
+      >
+        <!-- Yes Boy Meme / Celebration GIF -->
+        <div class="celebration-text mb-8">
+          <img
+            src="https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExaGVzYjJqdHpqOGIyaGlqbTJidGV1bTBrNGxlcGVyZ2ZrbTRndjNkdCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/kyLYXonQYYfwYDIeZl/giphy.gif"
+            alt="Celebration!"
+            class="w-64 h-64 md:w-80 md:h-80 rounded-3xl object-cover shadow-2xl"
+          />
+        </div>
+
+        <!-- Celebration Message -->
+        <h1
+          class="celebration-text text-4xl md:text-6xl font-extrabold text-white text-center px-4 drop-shadow-lg"
+          style="animation-delay: 0.3s"
+        >
+          I KNEW YOU'D SAY YES!
+        </h1>
+
+        <!-- Big Heart -->
+        <div class="pulse-heart text-8xl mt-6">
+          ❤️
+        </div>
+
+        <!-- Cute message -->
+        <p
+          class="celebration-text text-xl md:text-2xl text-white/90 mt-6 font-semibold"
+          style="animation-delay: 0.6s"
+        >
+          You've made me the happiest person! 🥰
+        </p>
+      </div>
+    </transition>
+  </div>
+
+  <script>
+    const { createApp, ref, onMounted, computed } = Vue;
+
+    createApp({
+      setup() {
+        // State
+        const accepted = ref(false);
+        const yesButtonScale = ref(1);
+        const guiltMessageIndex = ref(-1);
+        const noButtonPosition = ref({ x: 0, y: 0 });
+
+        // Guilt trip messages
+        const guiltMessages = [
+          "Wrong button? 🤔",
+          "Are you sure? 😢",
+          "The 'No' button is shy, try 'Yes' instead! 😊",
+          "Okay, now you're just being mean. 😭",
+          "Please? Pretty please? 🥺",
+          "I'll be sad forever... 💔",
+          "The 'Yes' button is getting lonely! 😔",
+          "Fine, I'll just keep dodging... 🏃"
+        ];
+
+        // Floating hearts data
+        const floatingHearts = ref([]);
+
+        // Computed guilt message
+        const guiltMessage = computed(() => {
+          if (guiltMessageIndex.value < 0) return '';
+          return guiltMessages[Math.min(guiltMessageIndex.value, guiltMessages.length - 1)];
+        });
+
+        // Initialize floating hearts
+        const initFloatingHearts = () => {
+          const emojis = ['❤️', '💕', '💖', '💗', '💓', '💘', '💝', '🌹'];
+          floatingHearts.value = Array.from({ length: 15 }, (_, i) => ({
+            id: i,
+            left: Math.random() * 100,
+            delay: Math.random() * 5,
+            duration: 3 + Math.random() * 4,
+            emoji: emojis[Math.floor(Math.random() * emojis.length)]
+          }));
+        };
+
+        // Set initial button position
+        const setInitialPosition = () => {
+          const padding = 20;
+          const buttonWidth = 100;
+          const buttonHeight = 48;
+
+          noButtonPosition.value = {
+            x: (window.innerWidth / 2) + 60,
+            y: (window.innerHeight / 2) + 20
+          };
+        };
+
+        // Escape button logic
+        const escapeButton = () => {
+          const padding = 20;
+          const buttonWidth = 100;
+          const buttonHeight = 48;
+
+          // Calculate safe bounds
+          const maxX = window.innerWidth - buttonWidth - padding;
+          const maxY = window.innerHeight - buttonHeight - padding;
+
+          // Generate random position within bounds
+          const newX = padding + Math.random() * (maxX - padding);
+          const newY = padding + Math.random() * (maxY - padding);
+
+          noButtonPosition.value = { x: newX, y: newY };
+
+          // Increment guilt message
+          guiltMessageIndex.value++;
+
+          // Increase Yes button scale
+          yesButtonScale.value += 0.15;
+        };
+
+        // Accept proposal
+        const acceptProposal = () => {
+          accepted.value = true;
+
+          // Trigger confetti
+          setTimeout(() => {
+            triggerConfetti();
+          }, 100);
+        };
+
+        // Confetti function with heart shapes
+        const triggerConfetti = () => {
+          const duration = 5000;
+          const end = Date.now() + duration;
+
+          // Heart shape confetti
+          const heartShape = confetti.shapeFromPath({
+            path: 'M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z'
+          });
+
+          const colors = ['#ff0000', '#ff69b4', '#ff1493', '#ff6b6b', '#ffa07a'];
+
+          (function frame() {
+            confetti({
+              particleCount: 5,
+              angle: 60,
+              spread: 55,
+              origin: { x: 0 },
+              colors: colors,
+              shapes: ['circle', heartShape],
+              scalar: 1.2
+            });
+            confetti({
+              particleCount: 5,
+              angle: 120,
+              spread: 55,
+              origin: { x: 1 },
+              colors: colors,
+              shapes: ['circle', heartShape],
+              scalar: 1.2
+            });
+
+            if (Date.now() < end) {
+              requestAnimationFrame(frame);
+            }
+          }());
+
+          // Big burst in the middle
+          setTimeout(() => {
+            confetti({
+              particleCount: 100,
+              spread: 100,
+              origin: { y: 0.6 },
+              colors: colors,
+              shapes: ['circle', heartShape],
+              scalar: 1.5
+            });
+          }, 500);
+        };
+
+        // Initialize on mount
+        onMounted(() => {
+          initFloatingHearts();
+          setInitialPosition();
+
+          // Handle window resize
+          window.addEventListener('resize', setInitialPosition);
+        });
+
+        return {
+          accepted,
+          yesButtonScale,
+          guiltMessage,
+          noButtonPosition,
+          floatingHearts,
+          escapeButton,
+          acceptProposal
+        };
+      }
+    }).mount('#app');
+  </script>
+</body>
+</html>
